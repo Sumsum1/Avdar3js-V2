@@ -380,10 +380,10 @@
 
 			var material11 = new THREE.MeshLambertMaterial({
 				map: loader11.load('/exportFile/png/HP_Product_1.png'),
-				transparent: true,
-
-				color: 'white',
+				
 				side: THREE.DoubleSide,
+				transparent: true,
+				color: 'white'
 
 			});
 
@@ -413,6 +413,7 @@
 			var loader33 = new THREE.TextureLoader();
 			var material33 = new THREE.MeshLambertMaterial({
 				map: loader33.load('/exportFile/png/HP_Product_3.png'),
+
 				side: THREE.DoubleSide,
 				transparent: true,
 				color: 'white'
@@ -541,13 +542,15 @@
 				if (objects[i] != null) {
 
 					{
-						objects[i].rotation.x += 0.001;
-						objects[i].rotation.z += 0.001;
-						//objects[i].rotation.y += 0.001;
-						objects[i].position.x += (Math.random());
-						objects[i].position.x -= (Math.random());
-						objects[i].position.y += (Math.random());
-						objects[i].position.y -= (Math.random());
+						// objects[i].rotation.x += 0.001;
+						// objects[i].rotation.z += 0.001;
+						// //objects[i].rotation.y += 0.001;
+						// objects[i].position.x += (Math.random());
+						// objects[i].position.x -= (Math.random());
+						// objects[i].position.y += (Math.random());
+						// objects[i].position.y -= (Math.random());
+
+
 						// if (helper.position.x >= areaC.position.x - 150 && helper.position.x < areaC.position.x+150&&helper.position.y >= areaC.position.y - 150 && helper.position.y < areaC.position.y  + 150&&i>=0&&i<=38)
 						// 			objects[i].position.z += 10;
 
