@@ -1,0 +1,597 @@
+</html>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>avdar</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<style>
+#container{
+	position: fixed;
+}
+	</style>
+</head>
+
+<body>
+
+	<div id="container"></div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/17.2.0/Tween.js"></script>
+	<script src='https://unpkg.com/three@0.127.0/build/three.js'></script>
+	<script src="https://threejs.org/examples/js/libs/stats.min.js"></script>
+	<script src="https://threejs.org/examples/js/loaders/FBXLoader.js"></script>
+	<script src="./examples/js/libs/fflate.min.js"></script>
+	<script src="https://rawgithub.com/mrdoob/three.js/master/build/three.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.8.0/gsap.min.js"></script>
+
+
+	<script type="module">
+
+		import * as THREE from './build/three.module.js';
+
+		import Stats from './examples/jsm/libs/stats.module.js';
+		import { OrbitControls } from './examples/jsm/controls/OrbitControls.js';
+
+
+		import { TrackballControls } from './examples/jsm/controls/TrackballControls.js';
+		//import { PointerLockControls } from './jsm/controls/PointerLockControls.js';
+		import { HDRCubeTextureLoader } from './examples/jsm/loaders/HDRCubeTextureLoader.js';
+		import { DRACOLoader } from './examples/jsm/loaders/DRACOLoader.js';
+		//import { FBXLoader } from './examples/jsm/loaders/FBXLoader.js';
+		import { GLTFLoader } from './examples/jsm/loaders/GLTFLoader.js';
+
+		import { CSS2DRenderer, CSS2DObject } from './examples/jsm/renderers/CSS2DRenderer.js';// text labels renderer
+		import { CSS3DRenderer, CSS3DObject } from './examples/jsm/renderers/CSS3DRenderer.js';
+		//import {CSS3DRenderer,CSS3DObject} from 'https://threejs.org/examples/jsm/renderers/CSS3DRenderer.js';
+		import { RGBELoader } from './examples/jsm/loaders/RGBELoader.js';
+		import { RoughnessMipmapper } from './examples/jsm/utils/RoughnessMipmapper.js'
+		import { BokehPass } from './examples/jsm/postprocessing/BokehPass.js';
+		import { EffectComposer } from './examples/jsm/postprocessing/EffectComposer.js';
+		import { RenderPass } from './examples/jsm/postprocessing/RenderPass.js';
+		import { ShaderPass } from './examples/jsm/postprocessing/ShaderPass.js';
+		import { BloomPass } from './examples/jsm/postprocessing/BloomPass.js';
+		import { FilmPass } from './examples/jsm/postprocessing/FilmPass.js';
+		import { FocusShader } from './examples/jsm/shaders/FocusShader.js';
+		import { OBJLoader } from './examples/jsm/loaders/OBJLoader.js';
+
+		import { GUI } from './examples/jsm/libs/dat.gui.module.js';
+		import { ImprovedNoise } from './examples/jsm/math/ImprovedNoise.js';
+
+
+		//import { createGlowMesh, defaultOptions } from "three-glow-mesh";
+		let container, stats;
+
+		let controls, scene, renderer;
+
+		let meshMouse, texture;
+
+		let loader, camera, dracoLoader, vertices, objects, areaA, areaB, areaC, meshLight;
+
+		let light, light1, light2, light3, dLight;
+
+		let width, height;
+
+		let effectController;
+
+		let mesh, mesh2, mesh3;
+		let mouseCircle;
+		//let materialColor;
+		let materialLight;
+		let materialColor = {};
+		let cube;
+
+		materialColor[0] = new THREE.Color('#FFFFFF');
+		materialColor[1] = new THREE.Color('#406FCC');
+		materialColor[2] = new THREE.Color('#F60000');
+
+		const worldWidth = 256, worldDepth = 256,
+			worldHalfWidth = worldWidth / 2, worldHalfDepth = worldDepth / 2;
+
+		let helper;
+		let postprocessing = {};
+
+		const raycaster = new THREE.Raycaster();
+		const pointer = new THREE.Vector2();
+
+		function initPostprocessing() {
+
+			const renderPass = new RenderPass(scene, camera);
+
+			const bokehPass = new BokehPass(scene, camera, {
+				focus: 600,
+				aperture: 0.000025,
+				maxblur: 0.01,
+			});
+
+			const composer = new EffectComposer(renderer);
+
+			composer.addPass(renderPass);
+			composer.addPass(bokehPass);
+
+			postprocessing.composer = composer;
+			postprocessing.bokeh = bokehPass;
+		}
+		let metalH;
+		function loadGLTF(area, model) {
+
+			if (model == 1)
+				metalH = '/exportFile/gltf/Profile1_g.gltf';
+			if (model == 2)
+				metalH = '/exportFile/gltf/Profile2_g.gltf';
+			if (model == 3)
+				metalH = '/exportFile/gltf/Profile3_g.gltf';
+			if (model == 4)
+				metalH = '/exportFile/gltf/TubeQuad_g.gltf';
+			if (model == 5)
+				metalH = '/exportFile/gltf/Tube_g.gltf';
+			if (model == 6) {
+				metalH = '/exportFile/gltf/Coil_g.gltf';
+			}
+
+			loader = new GLTFLoader();
+
+			const modelBee = new THREE.Object3D();
+			loader.load(metalH, processBee);
+
+			objects = [];
+
+			function processBee(gltf) { // Kelli Ray  (CC-BY) Poly by Googl
+				const box = new THREE.Box3().setFromObject(gltf.scene);
+				const c = box.getCenter(new THREE.Vector3());
+				const size = box.getSize(new THREE.Vector3());
+				gltf.scene.position.set(-c.x, size.y / 2 - c.y, -c.z); // center the gltf scene
+
+				modelBee.add(gltf.scene);
+
+				var j = 0;
+
+				var cc;
+				if (area.name == 'areaA') {
+					if (model == 1) {
+						j = 0
+					}
+					if (model == 2) {
+						j = 13;
+					}
+					if (model == 3) {
+						j = 26;
+					}
+					cc = 13;
+				}
+
+				if (area.name == 'areaB') {
+					if (model == 5)
+						j = 39;
+					if (model == 4)
+						j = 59
+					cc = 20;
+				}
+
+				if (area.name == 'areaC') {
+					j = 79;
+					cc = 40;
+				}
+
+				for (var i = j; i < j + cc; i++) {
+					objects[i] = new THREE.Object3D();
+					objects[i].add(gltf.scene.clone());
+					if (j >= 0 && j <= 26) areaC.add(objects[i]);
+					if (j >= 39 && j <= 59) { areaB.add(objects[i]); }
+					if (j == 79) { areaA.add(objects[i]); }
+					var x = Math.random() * 800 + 500;
+					objects[i].scale.set(x, x, x);
+					objects[i].position.set(parent.position.x + Math.random() * 3200 - 1600, parent.position.y + Math.random() * 2000 - 1000, parent.position.z + Math.random() * 1500);
+					objects[i].rotation.set(Math.random() * 800 + 400, Math.random() * 800 + 400, Math.random() * 800 + 400);
+					objects[i].addEventListener('click', function () { console.log("dddddd") }, true);
+					//scene.add(objects[i]);
+				}
+			}
+		}
+
+		// delay function
+		function throttle(fn, wait) {
+			var time = Date.now();
+			return function () {
+				if ((time + wait - Date.now()) < 0) {
+					fn();
+					time = Date.now();
+				}
+			}
+		}
+
+		// determined the direction of mouse wheel
+		function detectMouseWheelDirection(event) {
+			var delta = null,
+				direction = false;
+
+			if (!event) { // if the event is not provided, we get it from the window object
+				event = window.event;
+			}
+			if (event.wheelDelta) { // will work in most cases
+				delta = event.wheelDelta / 60;
+			} else if (event.detail) { // fallback for Firefox
+				delta = -event.detail / 2;
+			}
+			if (delta !== null) {
+				direction = delta > 0 ? 'up' : 'down';
+			}
+
+			return direction;
+		}
+
+		function handleMouseWheelDirection(direction) {
+			if (direction == 'up') {
+				if (posLocations < 3) {
+					posLocations++;
+				}
+				else
+					posLocations = 2;
+			}
+			else
+				if (direction == 'down') {
+					if (posLocations > 0) {
+						posLocations--;
+					}
+					else {
+						posLocations = 2;
+					}
+				}
+			cameraPositions(event);
+		}
+		var i = 0;
+		var countWheels = 0;
+		var possibleWheel = true;
+		var possible = false;
+		function onMouseWheel(event) {
+
+
+			// setTimeout(() => {
+			// 	possibleWheel = true;
+			// }, 1000);
+
+			if (possibleWheel == true) {
+				if (countWheels < 2 && detectMouseWheelDirection(event) == 'down') {
+					countWheels++;
+					possible = true
+				}
+
+				if (countWheels > 0 && detectMouseWheelDirection(event) == 'up') {
+					countWheels--;
+					possible = true;
+				}
+				console.log(possible, possibleWheel)
+			}
+
+			if (possible == true) {
+				if (i < 2)
+					i++
+				else
+					i = 0;
+
+				TweenLite.to(meshLight.material.color, 5.4, {
+					r: materialColor[i].r,
+					g: materialColor[i].g,
+					b: materialColor[i].b,
+				});
+
+				TweenLite.to(helper.color, 5.4, {
+					r: materialColor[i].r,
+					g: materialColor[i].g,
+					b: materialColor[i].b,
+				});
+
+				if ((detectMouseWheelDirection(event)) == 'up') {
+					tRotate(parent, { x: 0, y: -Math.PI / 1.5, z: 0 }, 1000, 500);
+					tRotate(mesh, { x: 0, y: Math.PI / 1.5, z: 0 }, 1000, 500);
+					tRotate(mesh2, { x: 0, y: Math.PI / 1.5, z: 0 }, 1000, 500);
+					tRotate(mesh3, { x: 0, y: Math.PI / 1.5, z: 0 }, 1000, 500);
+				}
+				else {
+					tRotate(parent, { x: 0, y: Math.PI / 1.5, z: 0 }, 1000, 500);
+					tRotate(mesh, { x: 0, y: -Math.PI / 1.5, z: 0 }, 1000, 500);
+					tRotate(mesh2, { x: 0, y: -Math.PI / 1.5, z: 0 }, 1000, 500);
+					tRotate(mesh3, { x: 0, y: -Math.PI / 1.5, z: 0 }, 1000, 500);
+				}
+				possibleWheel = false;
+				setTimeout(() => {
+					possibleWheel = true;
+				}, 1000);
+
+			}
+			possible = false;
+
+		}
+
+		init();
+		animate();
+
+		async function init() {
+
+			container = document.getElementById('container');
+			container.innerHTML = '';
+
+			renderer = new THREE.WebGLRenderer({ antialias: true, stencil: false });
+			renderer.setPixelRatio(window.devicePixelRatio * 3.5);
+			renderer.setSize(window.innerWidth, window.innerHeight);
+
+			container.appendChild(renderer.domElement);
+
+			scene = new THREE.Scene();
+
+			const loaderB = new THREE.TextureLoader();
+			loaderB.load('/exportFile/png/AvdarBackGround.png', function (texture) {
+				scene.background = texture;
+			});
+
+
+			// var loaderBackground = new THREE.TextureLoader();
+
+			// var materialBackground = new THREE.MeshLambertMaterial({
+			// 	map: loaderBackground.load('/Avdar/exportFile/png/AvdarBackGround.png'),
+			// 	transparent: true,
+
+			// 	color: 'white',
+			// 	side: THREE.DoubleSide,
+
+			// });
+
+			// var geometryBackGround = new THREE.PlaneGeometry(3800, 3800, 3800);
+			// mesh = new THREE.Mesh(geometryBackGround, materialBackground);
+			// mesh.position.set(0, 0, -2000);
+			// scene.add(mesh)
+
+			//scene.background = new THREE.Color(0xf0f0f0);
+
+			camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 15000);
+
+			const light = new THREE.AmbientLight(0x404040, 9); // soft white light
+			scene.add(light);
+
+			// const geometryCC = new THREE.BoxGeometry();
+			// const materialCC = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+			// cube = new THREE.Mesh(geometryCC, materialCC);
+			// cube.scale.set(100, 100, 100);
+
+			var geometry = new THREE.CircleGeometry(0, 50, 50);
+			areaA = new THREE.Mesh(geometry);
+			areaA.position.set(-348.0, 0, -199.1);
+			areaA.scale.multiplyScalar(0.1);
+			areaA.name = 'areaA';
+			tRotate(areaA, { x: 0, y: Math.PI / 3, z: 0 }, 0, 0);
+
+
+			//3  x z y
+			areaB = new THREE.Mesh(geometry);
+			areaB.scale.multiplyScalar(0.1);
+			areaB.position.set(341.1, -200, -194.1);
+			areaB.name = 'areaB';
+			tRotate(areaB, { x: 0, y: Math.PI / -3, z: 0 }, 0, 0);
+
+
+			//1 x z y
+			areaC = new THREE.Mesh(geometry);
+			areaC.scale.multiplyScalar(0.1);
+			areaC.position.set(0, 200, 302.0);
+			areaC.name = 'areaC';
+
+
+			var loader11 = new THREE.TextureLoader();
+
+			var material11 = new THREE.MeshLambertMaterial({
+				map: loader11.load('/exportFile/png/HP_Product_1.png'),
+				transparent: true,
+
+				color: 'white',
+				side: THREE.DoubleSide,
+
+			});
+
+			var geometry11 = new THREE.PlaneGeometry(2800, 1200, 2800);
+			mesh = new THREE.Mesh(geometry11, material11);
+			mesh.position.set(1300, -900, 2000);
+
+			areaC.add(mesh);
+
+
+			var loader22 = new THREE.TextureLoader();
+			var material22 = new THREE.MeshLambertMaterial({
+				map: loader22.load('/exportFile/png/HP_Product_2.png'),
+
+				side: THREE.DoubleSide,
+				transparent: true,
+				color: 'white'
+			});
+
+			var geometry22 = new THREE.PlaneGeometry(2800, 1300, 2800);
+			mesh2 = new THREE.Mesh(geometry22, material22);
+			mesh2.position.set(-1100, -700, -1000)
+			mesh2.rotation.y -= (Math.PI / 2.8);
+
+			areaA.add(mesh2);
+
+			var loader33 = new THREE.TextureLoader();
+			var material33 = new THREE.MeshLambertMaterial({
+				map: loader33.load('/exportFile/png/HP_Product_3.png'),
+				side: THREE.DoubleSide,
+				transparent: true,
+				color: 'white'
+			});
+
+			var geometry33 = new THREE.PlaneGeometry(2800, 1300, 2800);
+			mesh3 = new THREE.Mesh(geometry33, material33);
+			mesh3.position.set(-1080, -400, -1000)
+			mesh3.rotation.y += (Math.PI / 3);
+
+			areaB.add(mesh3);
+
+
+			parent = new THREE.Object3D();
+			parent.position.set(0, 0, 0);
+			parent.lookAt(0, 0, 0);
+			parent.add(areaA);
+			parent.add(areaB);
+			parent.add(areaC);
+
+			materialLight = new THREE.PointLight('green', 40, 20)
+			scene.add(parent);
+			const loader = new THREE.TextureLoader();
+			mouseCircle = loader.load('/exportFile/png/Circle_White.png');
+			var material2 = new THREE.MeshBasicMaterial({
+				map: mouseCircle,
+				color: 'white',
+				transparent: true,
+			});
+
+			var geometry2 = new THREE.CircleGeometry(0.08, 50, 50);
+
+			meshLight = new THREE.Mesh(geometry2, material2);
+
+			meshLight.position.set(0, 0, 0.6);
+			const geometryHelper = new THREE.ConeGeometry(20, 20, 30);
+
+			helper = new THREE.PointLight('white', 15, 200);
+			helper.add(meshLight);
+			helper.scale.set(200, 200, 200);
+			helper.position.z = 0;
+			scene.add(helper);
+
+			const data = generateHeight(worldWidth, worldDepth);
+
+			camera.position.y = 0;
+			camera.position.x = 0;
+			camera.position.z = 1000;
+
+
+
+			const geometryMouse = new THREE.BoxGeometry();
+
+
+			meshMouse = new THREE.Mesh(geometryMouse, new THREE.MeshBasicMaterial({ color: 'red' }));
+			meshMouse.scale.set(900, 900, -900);
+			meshMouse.position.set(0, 0, 0);
+			meshMouse.visible = false;
+			scene.add(meshMouse);
+
+			container.addEventListener('pointermove', onPointerMove);
+			document.addEventListener('wheel', throttle(onMouseWheel, 700));
+
+			stats = new Stats();
+			container.appendChild(stats.dom);
+
+			loadGLTF(areaA, 1)
+			loadGLTF(areaA, 2);
+			loadGLTF(areaA, 3);
+			loadGLTF(areaB, 4);
+			loadGLTF(areaB, 5);
+			loadGLTF(areaC, 6);
+
+			initPostprocessing();
+		}
+
+		function rotate() {
+
+		}
+
+		function changeColor(obj, angles, delay, pause) {
+
+		}
+		function tRotate(obj, angles, delay, pause) {
+
+			new TWEEN.Tween(obj.rotation)
+				.delay(pause)
+				.to({
+					x: obj.rotation._x + angles.x,
+					y: obj.rotation._y + angles.y,
+					z: obj.rotation._z + angles.z
+				}, delay)
+				.start();
+		}
+
+		function generateHeight(width, height) {
+
+			const size = width * height, data = new Uint8Array(size),
+				perlin = new ImprovedNoise(), z = Math.random() * 100;
+
+			let quality = 1;
+
+			for (let j = 0; j < 4; j++) {
+
+				for (let i = 0; i < size; i++) {
+
+					const x = i % width, y = ~ ~(i / width);
+					data[i] += Math.abs(perlin.noise(x / quality, y / quality, z) * quality * 1.75);
+
+				}
+				quality *= 5;
+			}
+			return data;
+		}
+
+
+		scene.add(cube);
+		function animate() {
+			// if (objects.length > 118)
+			// 	console.log(helper.position.x);
+			// if (helper.position.x >= areaC.position.x - 150 && helper.position.x < areaC.position.x + 150) {
+			// 	console.log('ggggggg');
+			// 	cube.scale.x += 0.1;
+			// }
+			for (let i = 0; i < objects.length; i++) {
+				if (objects[i] != null) {
+
+					{
+						objects[i].rotation.x += 0.001;
+						objects[i].rotation.z += 0.001;
+						//objects[i].rotation.y += 0.001;
+						objects[i].position.x += (Math.random());
+						objects[i].position.x -= (Math.random());
+						objects[i].position.y += (Math.random());
+						objects[i].position.y -= (Math.random());
+						// if (helper.position.x >= areaC.position.x - 150 && helper.position.x < areaC.position.x+150&&helper.position.y >= areaC.position.y - 150 && helper.position.y < areaC.position.y  + 150&&i>=0&&i<=38)
+						// 			objects[i].position.z += 10;
+
+						// 			if (helper.position.x >= areaC.position.x - 150 && helper.position.x < areaC.position.x+150&&helper.position.y >= areaC.position.y - 150 && helper.position.y < areaC.position.y  + 150&&i>=0&&i<=38)
+						// 			objects[i].position.z += 10;
+
+					}
+
+				}
+				//parent.rotation.y += 0.0006;
+			}
+			render();
+			TWEEN.update();
+
+			requestAnimationFrame(animate);
+
+			stats.update();
+		}
+
+		function render() {
+
+			renderer.render(scene, camera);
+			postprocessing.composer.render(0.1);
+		}
+
+		function onPointerMove(event) {
+
+			pointer.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+			pointer.y = - (event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+			raycaster.setFromCamera(pointer, camera);
+
+			// See if the ray from the camera into the world hits one of our meshes
+			const intersects = raycaster.intersectObject(meshMouse);
+
+			// Toggle rotation bool for meshes that we clicked
+			if (intersects.length > 0) {
+
+				helper.position.set(0, 0, 0);
+				helper.lookAt(intersects[0].face.normal);
+
+				helper.position.copy(intersects[0].point);
+			}
+		}
+	</script>
+</body>
+
+</html>
